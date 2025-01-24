@@ -71,19 +71,14 @@ if uploaded_file:
     format_type, stream = try_read_seismic(file_buffer)
 
     if format_type == 'obspy':
-        tr = stream[0]  # Use first trace
-        
-        # Trace information
         st.subheader("Trace Information")
         st.write(stream)
         
-        # Updated waveform visualization
         st.subheader("Waveform Visualization")
         fig = plt.figure(figsize=(10, 4))
         stream.plot(fig=fig)
         st.pyplot(fig)
 
-        # Advanced parameters and processing
         with st.expander("Advanced Settings"):
             st.markdown("### Preprocessing")
             col1, col2 = st.columns(2)
@@ -111,51 +106,81 @@ if uploaded_file:
             num_eps = col3.number_input("Number of steps", 
                                        value=20, min_value=5)
 
-        # Preprocessing
-        if detrend_type != "none":
-            tr.detrend(type=detrend_type)
-            
-        if filter_type != "none":
-            if filter_type == "lowpass":
-                tr.filter('lowpass', freq=freq_max)
-            elif filter_type == "highpass":
-                tr.filter('highpass', freq=freq_min)
-            elif filter_type == "bandpass":
-                tr.filter('bandpass', freqmin=freq_min, freqmax=freq_max)
-
-        # Generate epsilon values
-        epsilons = np.logspace(np.log10(max_eps), np.log10(min_eps), num_eps)
-        
         if st.button("Calculate Fractal Dimension"):
-            with st.spinner("Calculating..."):
+            with st.spinner("Calculating for all traces..."):
                 try:
-                    t = tr.times()
-                    y = tr.data
-                    
-                    fd, (log_scales, log_counts) = calculate_fractal_dimension(t, y, epsilons)
-                    
-                    if fd is None:
-                        st.error("Not enough points for calculation")
-                    else:
-                        st.subheader(f"Fractal Dimension: **{fd:.4f}**")
+                    results = []
+                    plot_buffers = []
+                    epsilons = np.logspace(np.log10(max_eps), np.log10(min_eps), num_eps)
+
+                    for tr in stream:
+                        tr_processed = tr.copy()
                         
-                        # Create log-log plot
-                        fig2 = plt.figure()
+                        if detrend_type != "none":
+                            tr_processed.detrend(type=detrend_type)
+                            
+                        if filter_type != "none":
+                            if filter_type == "lowpass":
+                                tr_processed.filter('lowpass', freq=freq_max)
+                            elif filter_type == "highpass":
+                                tr_processed.filter('highpass', freq=freq_min)
+                            elif filter_type == "bandpass":
+                                tr_processed.filter('bandpass', freqmin=freq_min, freqmax=freq_max)
+
+                        t = tr_processed.times()
+                        y = tr_processed.data
+                        fd, (log_scales, log_counts) = calculate_fractal_dimension(t, y, epsilons)
+
+                        if fd is None:
+                            continue
+
+                        # Create plot
+                        fig = plt.figure()
                         plt.scatter(log_scales, log_counts, c='r', edgecolor='k')
                         plt.plot(log_scales, np.poly1d([fd, np.mean(log_counts)-fd*np.mean(log_scales)])(log_scales),
                                 'k--', label=f'Fit (D={fd:.3f})')
                         plt.xlabel("log(1/ε)")
                         plt.ylabel("log(N)")
                         plt.legend()
-                        st.pyplot(fig2)
                         
-                        # Prepare download for plot
+                        # Save plot to buffer
                         buf = BytesIO()
-                        fig2.savefig(buf, format="png")
-                        
-                        st.download_button("Download Plot", buf.getvalue(),
-                                         "fractal_plot.png",
-                                         "image/png")
+                        fig.savefig(buf, format="png")
+                        plot_buffers.append(buf)
+                        plt.close()
+
+                        results.append({
+                            'id': tr_processed.id,
+                            'fd': fd,
+                            'log_scales': log_scales,
+                            'log_counts': log_counts
+                        })
+
+                    st.subheader("Results")
+                    for idx, result in enumerate(results):
+                        with st.expander(f"{result['id']} - FD: {result['fd']:.4f}", expanded=True):
+                            col1, col2 = st.columns([1, 2])
+                            with col1:
+                                st.markdown(f"""
+                                **Fractal Dimension**  
+                                `{result['fd']:.4f}`
+                                
+                                **Trace ID**  
+                                `{result['id']}`
+                                """)
+                                
+                            with col2:
+                                st.image(plot_buffers[idx].getvalue(), 
+                                       caption=f"Log-Log Plot for {result['id']}")
+                            
+                            st.download_button(
+                                label=f"Download Plot - {result['id']}",
+                                data=plot_buffers[idx].getvalue(),
+                                file_name=f"fractal_{result['id'].replace(',', '_')}.png",
+                                mime="image/png",
+                                key=f"dl_{idx}"
+                            )
+
                 except Exception as e:
                     st.error(f"Calculation error: {str(e)}")
 
