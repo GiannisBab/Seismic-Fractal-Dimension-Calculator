@@ -13,7 +13,7 @@ st.sidebar.markdown("""
 1. Upload a seismogram file (SAC, MSEED, etc.)
 2. Preview data and adjust parameters
 3. Click 'Calculate Fractal Dimension'
-4. Download results as CSV/PNG
+4. Download results as PNG
 """)
 
 st.sidebar.markdown("### Example File")
@@ -149,22 +149,13 @@ if uploaded_file:
                         plt.legend()
                         st.pyplot(fig2)
                         
-                        # Prepare downloads
-                        csv = pd.DataFrame({
-                            "log_scale": log_scales,
-                            "log_count": log_counts
-                        }).to_csv(index=False).encode()
-                        
+                        # Prepare download for plot
                         buf = BytesIO()
                         fig2.savefig(buf, format="png")
                         
-                        col1, col2 = st.columns(2)
-                        col1.download_button("Download CSV", csv,
-                                            "fractal_dimension.csv",
-                                            "text/csv")
-                        col2.download_button("Download Plot", buf.getvalue(),
-                                            "fractal_plot.png",
-                                            "image/png")
+                        st.download_button("Download Plot", buf.getvalue(),
+                                         "fractal_plot.png",
+                                         "image/png")
                 except Exception as e:
                     st.error(f"Calculation error: {str(e)}")
 
