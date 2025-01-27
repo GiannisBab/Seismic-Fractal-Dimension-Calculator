@@ -5,7 +5,7 @@ from obspy import read
 from io import BytesIO
 from sklearn.metrics import r2_score
 
-st.set_page_config(page_title="Seismic Fractal Dimension", page_icon="📈")
+st.set_page_config(page_title="Seismic Fractal Dimension Calculator", page_icon="📈")
 
 st.sidebar.title("Instructions")
 st.sidebar.markdown(
