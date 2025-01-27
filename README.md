@@ -1,4 +1,4 @@
-# Seismic-Fractal-Dimension-Calculator 🌍
+# Seismic Fractal Dimension Calculator 🌍
 
 [![Streamlit](https://img.shields.io/badge/Streamlit-FF4B4B?style=for-the-badge&logo=Streamlit&logoColor=white)](https://seismic-fractal-dimension-calculator.streamlit.app/)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue?style=for-the-badge&logo=python)](https://www.python.org/)
